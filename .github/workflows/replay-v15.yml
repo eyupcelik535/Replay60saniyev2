@@ -1,0 +1,113 @@
+name: Replay Ok Donus V5
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Projeyi ac
+        run: unzip -oq ReplayGeriyeDonuk_v2_Ses_Mikrofon_Overlay.zip
+
+      - name: Ok animasyonunu duzelt
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('ReplayGeriyeDonuk_v2/app/src/main/java/com/example/replaygeri/ReplayService.java')
+          s = p.read_text()
+
+          def fix(old, new):
+              global s
+              assert s.count(old) == 1, 'Kod bulunamadi: ' + old[:50]
+              s = s.replace(old, new, 1)
+
+          fix('private TextView overlay;',
+              'private TextView overlay;\n    private float angle;\n    private Runnable spinTask;')
+
+          fix('TextView bubble = new TextView(this);', '''
+          TextView bubble = new TextView(this) {
+              @Override
+              protected void onDraw(android.graphics.Canvas c) {
+                  c.save();
+                  c.rotate(angle, getWidth()/2f, getHeight()/2f);
+                  super.onDraw(c);
+                  c.restore();
+              }
+          };''')
+
+          fix('            overlayAnimator.start();',
+              '            // Rotation starts only on tap.')
+
+          fix('if (!moved) {\n                                Intent save =',
+              '''if (!moved) {
+                  spinOnce(bubble);
+                  Intent save =''')
+
+          marker = '    private void removeOverlay() {'
+
+          method = '''
+          private void spinOnce(TextView bubble) {
+              if (spinTask != null)
+                  bubble.removeCallbacks(spinTask);
+
+              long start = android.os.SystemClock.uptimeMillis();
+
+              spinTask = new Runnable() {
+                  @Override
+                  public void run() {
+                      float t = Math.min(1f,
+                          (android.os.SystemClock.uptimeMillis() - start) / 1000f);
+
+                      angle = 360f * t;
+                      bubble.invalidate();
+
+                      if (t < 1f)
+                          bubble.postOnAnimation(this);
+                      else {
+                          angle = 0f;
+                          bubble.invalidate();
+                      }
+                  }
+              };
+
+              bubble.postOnAnimation(spinTask);
+          }
+
+          '''
+
+          fix(marker, method + marker)
+          p.write_text(s)
+          print('Replay V5 animasyon kodu uygulandi.')
+          PY
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+
+      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: APK olustur
+        working-directory: ReplayGeriyeDonuk_v2
+        run: gradle --no-daemon :app:assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Replay-V5-Ok-Donus-APK
+          path: ReplayGeriyeDonuk_v2/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
