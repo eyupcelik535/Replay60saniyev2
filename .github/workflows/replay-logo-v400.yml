@@ -1,5 +1,5 @@
 
-name: Replay V6 - Logo ve Calisan V5 Ok
+name: Replay V7 - 60 Saniye Tampon Duzeltmesi ve V6 Logo
 
 on:
   workflow_dispatch:
@@ -78,10 +78,10 @@ jobs:
           '''
           fix(marker, method + marker)
           p.write_text(s, encoding='utf-8')
-          print('Calisan V5 ok animasyonu uygulandi.')
+          print('Calisan V5 tek tur ok animasyonu korundu.')
           PY
 
-      - name: Ana ekran logosunu ekle
+      - name: Ana ekran V6 logosunu koru
         run: |
           python3 - <<'PY'
           import base64
@@ -155,7 +155,47 @@ jobs:
           assert xml.count(old) == 1, 'Mevcut launcher icon tanimi bulunamadi'
           xml = xml.replace(old, 'android:icon="@drawable/replay_launcher"\n        android:roundIcon="@drawable/replay_launcher"')
           manifest.write_text(xml, encoding='utf-8')
-          print('Replay logo APK kaynaklarina entegre edildi.')
+          print('Replay V6 logosu korundu.')
+          PY
+
+      - name: 60 saniye tampon duzeltmesi
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('ReplayGeriyeDonuk_v2/app/src/main')
+          buffer_java = root / 'java/com/example/replaygeri/ReplayBuffer.java'
+          assert buffer_java.is_file(), f'Dosya bulunamadi: {buffer_java}'
+          src = buffer_java.read_text(encoding='utf-8')
+
+          def change_long_constant(name, replacement):
+              global src
+              pattern = (r'(?m)^(\s*(?:(?:private|public|protected)\s+)?'
+                         r'(?:static\s+final|final\s+static)\s+long\s+'
+                         + re.escape(name) + r'\s*=\s*)[^;]+;')
+              matches = list(re.finditer(pattern, src))
+              assert len(matches) == 1, f'{name} tanimi bulunamadi veya birden fazla: {len(matches)}'
+              src = re.sub(pattern, lambda m: m.group(1) + replacement + ';', src, count=1)
+
+          # 180 MiB'lik sinir bazi cihazlarda 60 saniye tamamlanmadan dolabilir.
+          # 384 MiB butce 60 saniyelik icerik icin daha fazla alan saglar.
+          change_long_constant('MAX_VIDEO_BYTES', '384L * 1024L * 1024L')
+          # Keyframe ve onbellek icin fazladan 10 saniyelik zaman penceresi.
+          change_long_constant('KEEP_US', '70L * 1000000L')
+          buffer_java.write_text(src, encoding='utf-8')
+
+          # Daha buyuk tamponun Android heap tarafindan kesilmesini azaltir.
+          manifest = root / 'AndroidManifest.xml'
+          xml = manifest.read_text(encoding='utf-8')
+          assert '<application' in xml, 'Manifest application etiketi bulunamadi'
+          if re.search(r'android:largeHeap\s*=', xml):
+              xml = re.sub(r'android:largeHeap\s*=\s*"[^"]*"',
+                           'android:largeHeap="true"', xml, count=1)
+          else:
+              xml = xml.replace('<application', '<application android:largeHeap="true"', 1)
+          manifest.write_text(xml, encoding='utf-8')
+          print('Replay V7: MAX_VIDEO_BYTES=384 MiB, KEEP_US=70 sn, largeHeap=true')
           PY
 
       - name: Java 17
@@ -184,6 +224,6 @@ jobs:
       - name: APK dosyasini yayimla
         uses: actions/upload-artifact@v4
         with:
-          name: Replay-V6-Logo-APK
+          name: Replay-V7-60s-Logo-APK
           path: ReplayGeriyeDonuk_v2/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
