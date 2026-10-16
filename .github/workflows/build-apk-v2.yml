@@ -1,0 +1,58 @@
+name: Replay v2 APK Olustur
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Unpack replay v2 project
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP=$(find . -maxdepth 1 -type f -name 'ReplayGeriyeDonuk_v2_Ses_Mikrofon_Overlay*.zip' | head -n 1)
+          if [ -z "$ZIP" ]; then
+            echo 'Replay v2 project ZIP not found'
+            exit 1
+          fi
+          unzip -q -o "$ZIP" -d .
+          test -f ReplayGeriyeDonuk_v2/app/build.gradle
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+
+      - name: Install SDK 35
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build debug APK
+        working-directory: ReplayGeriyeDonuk_v2
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Replay-v2-APK
+          path: ReplayGeriyeDonuk_v2/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          
