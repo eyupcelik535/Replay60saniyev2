@@ -32,6 +32,28 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Replay ok animasyonunu duzelt
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("ReplayGeriyeDonuk_v2/app/src/main/java/com/example/replaygeri/ReplayService.java")
+          s = p.read_text()
+          s = s.replace(
+              "overlayAnimator.setRepeatCount(ValueAnimator.INFINITE);",
+              "overlayAnimator.setRepeatCount(0);"
+          )
+          s = s.replace(
+              "            overlayAnimator.start();",
+              "            // Start only on tap."
+          )
+          s = s.replace(
+              "if (!moved) {\n                                Intent save =",
+              "if (!moved) {\n                                if (overlayAnimator != null) {\n                                    overlayAnimator.cancel();\n                                    overlayAnimator.start();\n                                }\n                                Intent save ="
+          )
+          p.write_text(s)
+          PY
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
