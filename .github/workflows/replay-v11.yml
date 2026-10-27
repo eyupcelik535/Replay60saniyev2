@@ -1,5 +1,5 @@
 
-name: Astra 720p60 Codec Test Tek Dosya
+name: Astra 720p60 Codec Test V3
 
 on:
   workflow_dispatch:
@@ -17,122 +17,91 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # Mevcut Android SDK kullanilir.
-      - name: Android SDK kontrol
+      - name: Android SDK 35
         shell: bash
         run: |
-          set -e
-          SDK_DIR="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
-          echo "SDK konumu: $SDK_DIR"
-          test -n "$SDK_DIR"
-          test -f "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager"
-          echo "$SDK_DIR/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-          "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --version
-
-      - name: SDK platform 35
-        shell: bash
-        run: |
-          set -e
-          SDK_DIR="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-          "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0'
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          echo "SDK: $SDK"
+          if [ -x "$SDK/cmdline-tools/latest/bin/sdkmanager" ]; then
+            MANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          else
+            MANAGER="$(command -v sdkmanager)"
+          fi
+          yes | "$MANAGER" --licenses >/dev/null || true
+          "$MANAGER" 'platforms;android-35' 'build-tools;35.0.0'
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
 
       - name: Gradle 8.11.1
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
 
-      - name: Android projesini olustur
+      - name: Projeyi olustur
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p "$(dirname settings.gradle)"
-          cat > settings.gradle <<'CODEC_0_FILE_END'
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          rootProject.name = 'RedMagicAstraCodecTest'
+          cat > settings.gradle <<'ASTRA_FILE_0_END'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          rootProject.name = 'Astra720p60'
           include ':app'
-          CODEC_0_FILE_END
+          ASTRA_FILE_0_END
 
           mkdir -p "$(dirname build.gradle)"
-          cat > build.gradle <<'CODEC_1_FILE_END'
-          plugins {
-              id 'com.android.application' version '8.9.2' apply false
-          }
-          CODEC_1_FILE_END
+          cat > build.gradle <<'ASTRA_FILE_1_END'
+          plugins { id 'com.android.application' version '8.9.2' apply false }
+          ASTRA_FILE_1_END
 
           mkdir -p "$(dirname gradle.properties)"
-          cat > gradle.properties <<'CODEC_2_FILE_END'
+          cat > gradle.properties <<'ASTRA_FILE_2_END'
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           android.useAndroidX=true
-          CODEC_2_FILE_END
+          ASTRA_FILE_2_END
 
           mkdir -p "$(dirname app/build.gradle)"
-          cat > app/build.gradle <<'CODEC_3_FILE_END'
-          plugins {
-              id 'com.android.application'
-          }
-
+          cat > app/build.gradle <<'ASTRA_FILE_3_END'
+          plugins { id 'com.android.application' }
           android {
-              namespace 'com.codecdiagnostic.astra'
+              namespace 'com.astratest.codec'
               compileSdk 35
-
               defaultConfig {
-                  applicationId 'com.codecdiagnostic.astra'
-                  minSdk 26
+                  applicationId 'com.astratest.codec'
+                  minSdk 29
                   targetSdk 35
-                  versionCode 1
-                  versionName '1.0'
+                  versionCode 3
+                  versionName '3.0'
               }
-
               compileOptions {
                   sourceCompatibility JavaVersion.VERSION_17
                   targetCompatibility JavaVersion.VERSION_17
               }
           }
-          CODEC_3_FILE_END
+          ASTRA_FILE_3_END
 
           mkdir -p "$(dirname app/src/main/AndroidManifest.xml)"
-          cat > app/src/main/AndroidManifest.xml <<'CODEC_4_FILE_END'
+          cat > app/src/main/AndroidManifest.xml <<'ASTRA_FILE_4_END'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <application
-                  android:allowBackup="false"
-                  android:label="Astra Codec Test"
-                  android:theme="@android:style/Theme.Material.Light.NoActionBar"
-                  android:usesCleartextTraffic="false">
-                  <activity android:name=".MainActivity" android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-              </application>
+            <application android:label="Astra Codec Test V3" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:allowBackup="false">
+              <activity android:name=".MainActivity" android:exported="true">
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN" />
+                  <category android:name="android.intent.category.LAUNCHER" />
+                </intent-filter>
+              </activity>
+            </application>
           </manifest>
-          CODEC_4_FILE_END
+          ASTRA_FILE_4_END
 
-          mkdir -p "$(dirname app/src/main/java/com/codecdiagnostic/astra/MainActivity.java)"
-          cat > app/src/main/java/com/codecdiagnostic/astra/MainActivity.java <<'CODEC_5_FILE_END'
-          package com.codecdiagnostic.astra;
+          mkdir -p "$(dirname app/src/main/java/com/astratest/codec/MainActivity.java)"
+          cat > app/src/main/java/com/astratest/codec/MainActivity.java <<'ASTRA_FILE_5_END'
+          package com.astratest.codec;
 
           import android.app.Activity;
-          import android.content.ClipData;
-          import android.content.ClipboardManager;
-          import android.content.Context;
           import android.content.Intent;
-          import android.graphics.Color;
-          import android.graphics.Typeface;
-          import android.graphics.drawable.GradientDrawable;
           import android.media.MediaCodec;
           import android.media.MediaCodecInfo;
           import android.media.MediaCodecList;
@@ -140,334 +109,184 @@ jobs:
           import android.os.Build;
           import android.os.Bundle;
           import android.view.Surface;
+          import android.view.View;
           import android.widget.Button;
           import android.widget.LinearLayout;
           import android.widget.ScrollView;
           import android.widget.TextView;
-          import android.widget.Toast;
-
-          import java.util.ArrayList;
-          import java.util.List;
 
           public class MainActivity extends Activity {
-              private static final int BACKGROUND = Color.rgb(13, 20, 33);
-              private static final int PANEL = Color.rgb(25, 37, 56);
-              private static final int FOREGROUND = Color.rgb(236, 244, 251);
-              private static final int SECONDARY = Color.rgb(178, 195, 211);
-              private static final int ACCENT = Color.rgb(103, 229, 187);
-              private TextView reportView;
-              private Button scanButton;
-              private Button shareButton;
-              private String lastReport = "";
+              private TextView output;
+              private Button test, share;
+              private String result = "";
 
-              @Override
-              public void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  getWindow().setStatusBarColor(BACKGROUND);
-                  getWindow().setNavigationBarColor(BACKGROUND);
-
+              @Override public void onCreate(Bundle state) {
+                  super.onCreate(state);
+                  LinearLayout layout = new LinearLayout(this);
+                  layout.setOrientation(LinearLayout.VERTICAL);
+                  layout.setPadding(24, 24, 24, 24);
+                  TextView header = new TextView(this);
+                  header.setText("ASTRA 720p60 KODLAYICI TESTI");
+                  header.setTextSize(22);
+                  layout.addView(header);
+                  test = new Button(this);
+                  test.setText("KODLAYICILARI TEST ET");
+                  layout.addView(test);
+                  share = new Button(this);
+                  share.setText("RAPORU PAYLAS");
+                  share.setEnabled(false);
+                  layout.addView(share);
+                  output = new TextView(this);
+                  output.setText("Hazir. Teste bas. Bu uygulama TikTok ayarlarini degistirmez.");
+                  output.setTextSize(13);
+                  output.setTextIsSelectable(true);
                   ScrollView scroll = new ScrollView(this);
-                  scroll.setFillViewport(true);
-                  scroll.setBackgroundColor(BACKGROUND);
-                  scroll.setFitsSystemWindows(true);
+                  scroll.addView(output);
+                  layout.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+                  setContentView(layout);
 
-                  LinearLayout page = new LinearLayout(this);
-                  page.setOrientation(LinearLayout.VERTICAL);
-                  int pad = dp(18);
-                  page.setPadding(pad, dp(14), pad, dp(25));
-                  scroll.addView(page);
-
-                  TextView title = new TextView(this);
-                  title.setText("ASTRA / CODEC TEST");
-                  title.setTextColor(ACCENT);
-                  title.setTextSize(24);
-                  title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-                  page.addView(title);
-
-                  TextView desc = new TextView(this);
-                  desc.setText("TikTok 720p60 sorunu için Android video kodlayıcı tanılama aracı. H.264 / H.265 • 30 / 60 FPS • Yatay / dikey");
-                  desc.setTextColor(SECONDARY);
-                  desc.setTextSize(14);
-                  desc.setPadding(0, dp(8), 0, dp(16));
-                  page.addView(desc);
-
-                  scanButton = new Button(this);
-                  scanButton.setText("KODLAYICILARI TEST ET");
-                  styleButton(scanButton, ACCENT, BACKGROUND);
-                  page.addView(scanButton, new LinearLayout.LayoutParams(-1, dp(52)));
-                  scanButton.setOnClickListener(v -> startScan());
-
-                  shareButton = new Button(this);
-                  shareButton.setText("RAPORU PAYLAŞ");
-                  styleButton(shareButton, PANEL, FOREGROUND);
-                  LinearLayout.LayoutParams shareParams = new LinearLayout.LayoutParams(-1, dp(48));
-                  shareParams.topMargin = dp(9);
-                  page.addView(shareButton, shareParams);
-                  shareButton.setEnabled(false);
-                  shareButton.setOnClickListener(v -> shareReport());
-
-                  TextView note = new TextView(this);
-                  note.setText("Bu test TikTok'u değiştirmez. Kodlayıcının 60 FPS desteğini bildirmesi, TikTok'un 60 FPS yayın izni verdiği anlamına gelmez. Kurulum testi de gerçek yayın FPS'ini ölçmez.");
-                  note.setTextColor(SECONDARY);
-                  note.setTextSize(12);
-                  note.setPadding(0, dp(15), 0, dp(15));
-                  page.addView(note);
-
-                  reportView = new TextView(this);
-                  reportView.setText("Hazır. Test düğmesine basın.");
-                  reportView.setTextIsSelectable(true);
-                  reportView.setTypeface(Typeface.MONOSPACE);
-                  reportView.setTextSize(12);
-                  reportView.setTextColor(FOREGROUND);
-                  reportView.setPadding(dp(13), dp(13), dp(13), dp(16));
-                  reportView.setBackground(roundRect(PANEL));
-                  page.addView(reportView, new LinearLayout.LayoutParams(-1, -2));
-                  setContentView(scroll);
-              }
-
-              private int dp(float value) {
-                  return Math.round(value * getResources().getDisplayMetrics().density);
-              }
-
-              private GradientDrawable roundRect(int color) {
-                  GradientDrawable bg = new GradientDrawable();
-                  bg.setColor(color);
-                  bg.setCornerRadius(dp(12));
-                  return bg;
-              }
-
-              private void styleButton(Button button, int background, int foreground) {
-                  button.setTextColor(foreground);
-                  button.setTextSize(13);
-                  button.setAllCaps(false);
-                  button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-                  button.setBackground(roundRect(background));
-              }
-
-              private void startScan() {
-                  scanButton.setEnabled(false);
-                  shareButton.setEnabled(false);
-                  reportView.setText("Android MediaCodec listesi inceleniyor ve 720p60 kodlayıcı başlatma testi yapılıyor...");
-                  new Thread(() -> {
-                      final String result;
-                      try {
-                          result = performScan();
-                      } catch (Throwable ex) {
-                          result = "Test tamamlanamadı: " + ex.getClass().getSimpleName() + ": " + ex.getMessage();
+                  test.setOnClickListener(new View.OnClickListener() {
+                      @Override public void onClick(View v) { runTest(); }
+                  });
+                  share.setOnClickListener(new View.OnClickListener() {
+                      @Override public void onClick(View v) {
+                          Intent send = new Intent(Intent.ACTION_SEND);
+                          send.setType("text/plain");
+                          send.putExtra(Intent.EXTRA_TEXT, result);
+                          startActivity(Intent.createChooser(send, "Codec raporunu paylas"));
                       }
-                      runOnUiThread(() -> {
-                          lastReport = result;
-                          reportView.setText(result);
-                          scanButton.setEnabled(true);
-                          shareButton.setEnabled(true);
-                      });
-                  }, "codec-test").start();
+                  });
               }
 
-              private static class Candidate {
-                  String name;
-                  String mime;
-                  int width;
-                  int height;
-                  Candidate(String name, String mime, int width, int height) {
-                      this.name = name;
-                      this.mime = mime;
-                      this.width = width;
-                      this.height = height;
-                  }
+              private void runTest() {
+                  test.setEnabled(false);
+                  share.setEnabled(false);
+                  output.setText("MediaCodec bilgileri okunuyor...");
+                  new Thread(new Runnable() {
+                      @Override public void run() {
+                          String data;
+                          try { data = scan(); }
+                          catch (Throwable e) { data = "Test hatasi: " + e.toString(); }
+                          final String report = data;
+                          runOnUiThread(new Runnable() {
+                              @Override public void run() {
+                                  result = report;
+                                  output.setText(report);
+                                  test.setEnabled(true);
+                                  share.setEnabled(true);
+                              }
+                          });
+                      }
+                  }).start();
               }
 
-              private String performScan() {
-                  StringBuilder out = new StringBuilder();
-                  out.append("REDMAGIC ASTRA - MEDIACODEC RAPORU\n");
-                  out.append("Üretici: ").append(Build.MANUFACTURER).append("\n");
-                  out.append("Model: ").append(Build.MODEL).append("\n");
-                  out.append("Cihaz kodu: ").append(Build.DEVICE).append("\n");
-                  out.append("Android: ").append(Build.VERSION.RELEASE)
-                     .append(" (API ").append(Build.VERSION.SDK_INT).append(")\n");
-                  out.append("--------------------------------\n");
-                  out.append("EVET/HAYIR: Android'in bildirdiği codec desteği.\n");
-                  out.append("BAŞARILI: encoder configure/start başarılı, gerçek FPS ölçümü DEĞİL.\n\n");
-
-                  MediaCodecInfo[] infos = new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos();
-                  List<Candidate> candidates = new ArrayList<>();
-                  int matches = 0;
-                  int hwAvc60 = 0;
-                  int hwHevc60 = 0;
-                  boolean avcCandidate = false;
-                  boolean hevcCandidate = false;
-
-                  for (MediaCodecInfo info : infos) {
+              private String scan() {
+                  StringBuilder sb = new StringBuilder();
+                  sb.append("ASTRA 720p60 TEST V3\n")
+                    .append("Cihaz: ").append(Build.MANUFACTURER).append(" ").append(Build.MODEL).append("\n")
+                    .append("Android: ").append(Build.VERSION.RELEASE).append(" | API ").append(Build.VERSION.SDK_INT).append("\n\n");
+                  int count = 0;
+                  int hardware60 = 0;
+                  MediaCodecInfo[] codecs = new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos();
+                  for (MediaCodecInfo info : codecs) {
                       if (!info.isEncoder()) continue;
                       if (Build.VERSION.SDK_INT >= 29 && info.isAlias()) continue;
                       for (String mime : info.getSupportedTypes()) {
                           if (!MediaFormat.MIMETYPE_VIDEO_AVC.equalsIgnoreCase(mime) &&
                               !MediaFormat.MIMETYPE_VIDEO_HEVC.equalsIgnoreCase(mime)) continue;
-                          matches++;
-                          boolean hardware = Build.VERSION.SDK_INT >= 29 && info.isHardwareAccelerated();
-                          out.append("[CODEC #").append(matches).append("]\n");
-                          out.append("Biçim: ").append(MediaFormat.MIMETYPE_VIDEO_AVC.equalsIgnoreCase(mime)
-                                  ? "H.264 / AVC" : "H.265 / HEVC").append("\n");
-                          out.append("Ad: ").append(info.getName()).append("\n");
-                          if (Build.VERSION.SDK_INT >= 29) {
-                              out.append("Donanım hızlandırmalı: ").append(yesNo(hardware)).append("\n");
-                              out.append("Yalnızca yazılım: ").append(yesNo(info.isSoftwareOnly())).append("\n");
-                          } else {
-                              out.append("Donanım sınıfı: API 29 altı, belirsiz\n");
-                          }
+                          count++;
+                          sb.append("=====================\n")
+                            .append(info.getName()).append("\n")
+                            .append(MediaFormat.MIMETYPE_VIDEO_AVC.equalsIgnoreCase(mime) ? "H.264" : "H.265")
+                            .append(" | Donanim: ").append(info.isHardwareAccelerated()).append("\n");
                           try {
                               MediaCodecInfo.CodecCapabilities caps = info.getCapabilitiesForType(mime);
-                              MediaCodecInfo.VideoCapabilities video = caps.getVideoCapabilities();
-                              if (video == null) {
-                                  out.append("VideoCapabilities kullanılamıyor.\n\n");
-                                  continue;
+                              MediaCodecInfo.VideoCapabilities v = caps.getVideoCapabilities();
+                              if (v == null) { sb.append("VideoCapabilities yok\n"); continue; }
+                              boolean horizontal30 = supported(v,1280,720,30);
+                              boolean horizontal60 = supported(v,1280,720,60);
+                              boolean vertical30 = supported(v,720,1280,30);
+                              boolean vertical60 = supported(v,720,1280,60);
+                              sb.append("1280x720 30 FPS: ").append(horizontal30).append("\n")
+                                .append("1280x720 60 FPS: ").append(horizontal60).append("\n")
+                                .append("720x1280 30 FPS: ").append(vertical30).append("\n")
+                                .append("720x1280 60 FPS: ").append(vertical60).append("\n")
+                                .append("1920x1080 60 FPS: ").append(supported(v,1920,1080,60)).append("\n");
+                              boolean surface = false;
+                              for (int f : caps.colorFormats) {
+                                  if (f == MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface) surface = true;
                               }
-                              boolean land30 = check(video, 1280, 720, 30);
-                              boolean land60 = check(video, 1280, 720, 60);
-                              boolean port30 = check(video, 720, 1280, 30);
-                              boolean port60 = check(video, 720, 1280, 60);
-                              boolean full60 = check(video, 1920, 1080, 60);
-                              out.append("1280x720 30 FPS: ").append(yesNo(land30)).append("\n");
-                              out.append("1280x720 60 FPS: ").append(yesNo(land60)).append("\n");
-                              out.append("720x1280 30 FPS: ").append(yesNo(port30)).append("\n");
-                              out.append("720x1280 60 FPS: ").append(yesNo(port60)).append("\n");
-                              out.append("1920x1080 60 FPS: ").append(yesNo(full60)).append("\n");
-                              out.append("720p yatay FPS aralığı: ").append(range(video, 1280, 720)).append("\n");
-                              out.append("720p dikey FPS aralığı: ").append(range(video, 720, 1280)).append("\n");
-                              out.append("Yüzey girişi: ").append(yesNo(hasSurface(caps))).append("\n");
-
-                              if (hardware && (land60 || port60)) {
-                                  if (MediaFormat.MIMETYPE_VIDEO_AVC.equalsIgnoreCase(mime)) hwAvc60++;
-                                  else hwHevc60++;
-                              }
-                              // Ilk uygun donanim codec'i secilir.
-                              if (hardware && hasSurface(caps)) {
-                                  if (MediaFormat.MIMETYPE_VIDEO_AVC.equalsIgnoreCase(mime) && !avcCandidate) {
-                                      if (land60) { candidates.add(new Candidate(info.getName(), mime, 1280, 720)); avcCandidate = true; }
-                                      else if (port60) { candidates.add(new Candidate(info.getName(), mime, 720, 1280)); avcCandidate = true; }
-                                  } else if (MediaFormat.MIMETYPE_VIDEO_HEVC.equalsIgnoreCase(mime) && !hevcCandidate) {
-                                      if (land60) { candidates.add(new Candidate(info.getName(), mime, 1280, 720)); hevcCandidate = true; }
-                                      else if (port60) { candidates.add(new Candidate(info.getName(), mime, 720, 1280)); hevcCandidate = true; }
-                                  }
+                              sb.append("Surface girisi: ").append(surface).append("\n");
+                              if (info.isHardwareAccelerated() && (horizontal60 || vertical60)) hardware60++;
+                              if (info.isHardwareAccelerated() && surface && (horizontal60 || vertical60)) {
+                                  int w = horizontal60 ? 1280 : 720;
+                                  int h = horizontal60 ? 720 : 1280;
+                                  sb.append("720p60 baslatma: ").append(start(info.getName(),mime,w,h)).append("\n");
                               }
                           } catch (Exception e) {
-                              out.append("Codec sorgusu hatası: ").append(e.getClass().getSimpleName())
-                                 .append(": ").append(e.getMessage()).append("\n");
+                              sb.append("Codec hatasi: ").append(e.toString()).append("\n");
                           }
-                          out.append("\n");
                       }
                   }
-                  out.append("--------------------------------\n");
-                  out.append("Bulunan H.264/H.265 encoder: ").append(matches).append("\n");
-                  out.append("720p60 destek bildiren donanım H.264: ").append(hwAvc60).append("\n");
-                  out.append("720p60 destek bildiren donanım H.265: ").append(hwHevc60).append("\n\n");
-                  out.append("720p60 KURULUM TESTİ\n");
-                  if (candidates.isEmpty()) {
-                      out.append("Kurulum denenemedi: uygun donanım kodlayıcı ve Surface desteği bulunamadı.\n");
-                  } else {
-                      for (Candidate candidate : candidates) {
-                          out.append(candidate.name).append(" (").append(candidate.width).append("x")
-                             .append(candidate.height).append(" @ 60): ")
-                             .append(tryStartEncoder(candidate)).append("\n");
-                      }
-                  }
-                  out.append("\nYORUM\n");
-                  if (hwAvc60 > 0 || hwHevc60 > 0) {
-                      out.append("Android, en az bir donanım kodlayıcı için 720p60 destekliyor bilgisini verdi. ")
-                         .append("TikTok'ta seçenek yoksa ayrıca TikTok'un cihaz/codec kontrolü incelenmelidir.\n");
-                  } else {
-                      out.append("Android donanım kodlayıcılarında 720p60 bildirimi bulunamadı. ")
-                         .append("Sistem codec bildirimi veya listeleme sonucu araştırılmalıdır.\n");
-                  }
-                  out.append("Bu uygulama 60 FPS yayın, gerçek kare hızı veya TikTok sunucusu onayını test etmez.\n");
-                  return out.toString();
+                  sb.append("\nTOPLAM H264/H265: ").append(count)
+                    .append("\n720p60 bildiren donanim codec: ").append(hardware60)
+                    .append("\n\nNot: Bu test sadece Android'in bildirdigi codec kabiliyetini ")
+                    .append("ve encoder baslatilmasini olcer. Gercek 60 FPS yayin veya TikTok sunucu izni olcumu degildir.\n");
+                  return sb.toString();
               }
 
-              private static boolean check(MediaCodecInfo.VideoCapabilities video, int width, int height, int fps) {
-                  try {
-                      return video.areSizeAndRateSupported(width, height, fps);
-                  } catch (Exception ignored) {
-                      return false;
-                  }
+              private boolean supported(MediaCodecInfo.VideoCapabilities v, int w, int h, int fps) {
+                  try { return v.areSizeAndRateSupported(w,h,fps); }
+                  catch (Exception e) { return false; }
               }
 
-              private static String range(MediaCodecInfo.VideoCapabilities video, int width, int height) {
-                  try {
-                      if (!video.isSizeSupported(width, height)) return "Çözünürlük desteklenmiyor";
-                      return video.getSupportedFrameRatesFor(width, height).toString();
-                  } catch (Exception ex) {
-                      return "Bilinmiyor (" + ex.getClass().getSimpleName() + ")";
-                  }
-              }
-
-              private static boolean hasSurface(MediaCodecInfo.CodecCapabilities caps) {
-                  for (int color : caps.colorFormats) {
-                      if (color == MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface) return true;
-                  }
-                  return false;
-              }
-
-              private static String yesNo(boolean value) {
-                  return value ? "EVET" : "HAYIR";
-              }
-
-              private static String tryStartEncoder(Candidate candidate) {
+              private String start(String codecName, String mime, int w, int h) {
                   MediaCodec codec = null;
                   Surface surface = null;
                   boolean started = false;
                   try {
-                      codec = MediaCodec.createByCodecName(candidate.name);
-                      MediaFormat format = MediaFormat.createVideoFormat(candidate.mime, candidate.width, candidate.height);
-                      format.setInteger(MediaFormat.KEY_COLOR_FORMAT,
-                              MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-                      format.setInteger(MediaFormat.KEY_BIT_RATE, 5_000_000);
-                      format.setInteger(MediaFormat.KEY_FRAME_RATE, 60);
-                      format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2);
-                      codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+                      codec = MediaCodec.createByCodecName(codecName);
+                      MediaFormat f = MediaFormat.createVideoFormat(mime,w,h);
+                      f.setInteger(MediaFormat.KEY_COLOR_FORMAT,MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
+                      f.setInteger(MediaFormat.KEY_FRAME_RATE,60);
+                      f.setInteger(MediaFormat.KEY_BIT_RATE,5000000);
+                      f.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL,2);
+                      codec.configure(f,null,null,MediaCodec.CONFIGURE_FLAG_ENCODE);
                       surface = codec.createInputSurface();
                       codec.start();
                       started = true;
-                      return "BAŞARILI (codec başlatıldı, kare üretilmedi)";
-                  } catch (Exception ex) {
-                      String message = ex.getMessage();
-                      if (message != null && message.length() > 150) message = message.substring(0, 150);
-                      return "HATA (" + ex.getClass().getSimpleName() + ": " + message + ")";
+                      return "BASARILI (gercek FPS olculmedi)";
+                  } catch (Exception e) {
+                      return "BASARISIZ: " + e.toString();
                   } finally {
                       if (codec != null) {
-                          if (started) {
-                              try { codec.stop(); } catch (Exception ignored) { }
-                          }
+                          if (started) try { codec.stop(); } catch (Exception ignored) { }
                           try { codec.release(); } catch (Exception ignored) { }
                       }
                       if (surface != null) surface.release();
                   }
               }
-
-              private void shareReport() {
-                  if (lastReport.isEmpty()) return;
-                  try {
-                      Intent intent = new Intent(Intent.ACTION_SEND);
-                      intent.setType("text/plain");
-                      intent.putExtra(Intent.EXTRA_SUBJECT, "Astra MediaCodec 720p60 Test Raporu");
-                      intent.putExtra(Intent.EXTRA_TEXT, lastReport);
-                      startActivity(Intent.createChooser(intent, "Codec raporunu paylaş"));
-                  } catch (Exception ex) {
-                      ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                      if (clipboard != null) {
-                          clipboard.setPrimaryClip(ClipData.newPlainText("Astra codec raporu", lastReport));
-                          Toast.makeText(this, "Paylaşım açılamadı; rapor panoya kopyalandı.", Toast.LENGTH_LONG).show();
-                      }
-                  }
-              }
           }
-          CODEC_5_FILE_END
+          ASTRA_FILE_5_END
 
       - name: APK derle
-        run: gradle :app:assembleDebug --no-daemon --stacktrace
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle :app:assembleDebug --no-daemon --console=plain --stacktrace 2>&1 | tee build.log
 
-      - name: APK dosyasini sun
+      - name: APK yukle
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Astra-Codec-Test-APK
+          name: Astra-Codec-Test-V3-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Hata gunlugunu yukle
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Astra-V3-Derleme-Hata-Raporu
+          path: build.log
+          if-no-files-found: ignore
